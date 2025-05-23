@@ -12,13 +12,27 @@ U8G2_SH1106_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE);
 #define ENCODER_DT  3
 #define ENCODER_SW  10
 
-int tempTarget = 20;
+// --- Fan PWM setup ---
+#define FAN_PIN 5           // PWM-capable pin for fan
+#define FAN_PWM_FREQ_SOFT 250 // Software PWM frequency in Hz
+
+int tempTarget = 10;
 int humTarget = 50;
 int menuIndex = 0; // 0: temp, 1: hum
 
+// fan helpers
+
+static unsigned long lastCycleStart = 0;
+static unsigned long period = 255;
+static bool isOn = false;
+
+
 int lastClk = HIGH;
-int lastDt = HIGH; // Add this line
+int lastDt = HIGH;
 bool lastButton = HIGH;
+
+// Function prototype
+void handleFanSoftwarePwm(int fanPwmValue);
 
 void setup() {
   Serial.begin(9600);
@@ -31,6 +45,7 @@ void setup() {
   pinMode(ENCODER_CLK, INPUT_PULLUP);
   pinMode(ENCODER_DT, INPUT_PULLUP);
   pinMode(ENCODER_SW, INPUT_PULLUP);
+  pinMode(FAN_PIN, OUTPUT); // Add this
 }
 
 void loop() {
@@ -68,6 +83,18 @@ void loop() {
   float h = dht.readHumidity();
   float t = dht.readTemperature();
 
+  // --- Fan PWM control ---
+  const int FAN_PWM_MIN = 100; // Minimum PWM that reliably spins the fan
+  const int FAN_PWM_MAX = 255; // Max PWM
+  int fanPwm = FAN_PWM_MIN;    // Default: slow speed
+  if (!isnan(t)) {
+    float diff = t - tempTarget;
+    if (diff > 0) {
+      // Too hot: speed up linearly, max at +10C
+      fanPwm = FAN_PWM_MIN + int((FAN_PWM_MAX - FAN_PWM_MIN) * std::min(diff, 10.0f) / 10.0f);
+    }
+  }
+
   // Display
   u8g2.clearBuffer();
   u8g2.setFont(u8g2_font_courB08_tf);
@@ -96,4 +123,33 @@ void loop() {
 
   u8g2.sendBuffer();
 
+  handleFanSoftwarePwm(fanPwm); // Pass fanPwm as argument
+}
+
+void handleFanSoftwarePwm(int fanPwmValue) {
+  unsigned long now = millis();
+  unsigned long cycleTime = now - lastCycleStart;
+
+  // Start a new PWM period if needed
+  if (cycleTime >= period) {
+    lastCycleStart = now;
+    cycleTime = 0;
+  }
+
+  unsigned long onTime = (fanPwmValue * period) / 255;
+  if (cycleTime < onTime) {
+    isOn = true;
+    digitalWrite(FAN_PIN, HIGH); // Turn on fan
+  } else {
+    isOn = false;
+    digitalWrite(FAN_PIN, LOW); // Turn off fan
+  }
+
+  // Set fan state based on duty cycle
+
+  // Debug output
+  Serial.print("fanPwmValue: "); Serial.print(fanPwmValue);
+  Serial.print(" onTime: "); Serial.print(onTime);
+  Serial.print(" cycleTime: "); Serial.print(cycleTime);
+  Serial.print(" isOn: "); Serial.println(isOn);
 }
