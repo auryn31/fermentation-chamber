@@ -2,42 +2,99 @@
 #include <Wire.h>
 #include <U8g2lib.h>
 #include <DHT.h>
+
+// Pin definitions
 #define DHTPIN 7
 #define DHTTYPE DHT11
-DHT dht(DHTPIN, DHTTYPE);
-U8G2_SH1106_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE);
-
-// Rotary encoder pins
 #define ENCODER_CLK 2
 #define ENCODER_DT  3
 #define ENCODER_SW  10
+#define FAN_PIN 5
 
-// --- Fan PWM setup ---
-#define FAN_PIN 5           // PWM-capable pin for fan
+// Constants
 #define FAN_PWM_FREQ_SOFT 250 // Software PWM frequency in Hz
+#define FAN_PWM_MIN 100       // Minimum PWM that reliably spins the fan
+#define FAN_PWM_MAX 255       // Max PWM
+#define SENSOR_READ_INTERVAL 500 // Read sensors every 500ms
+#define TEMP_MIN 0
+#define TEMP_MAX 40
+#define HUM_MIN 0
+#define HUM_MAX 100
+#define BUTTON_DEBOUNCE_TIME 50
 
-int tempTarget = 10;
-int humTarget = 50;
-int menuIndex = 0; // 0: temp, 1: hum
+// Hardware initialization
+DHT dht(DHTPIN, DHTTYPE);
+U8G2_SH1106_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE);
 
-// fan helpers
+// State structure to hold all system state
+struct SystemState {
+  int tempTarget;
+  int humTarget;
+  int menuIndex;
+  float humidity;
+  float temperature;
+  bool sensorReadSuccess;
+  int lastStateCLK;
+  unsigned long lastButtonPress;
+  unsigned long lastSensorRead;
+};
 
-static unsigned long lastCycleStart = 0;
-static unsigned long period = 255;
-static bool isOn = false;
+// Fan PWM state structure
+struct FanPwmState {
+  unsigned long lastCycleStart;
+  unsigned long period;
+  bool isOn;
+};
 
+// Function prototypes - most return a new state rather than modifying global state
+void setupHardware();
+SystemState createInitialState();
+SystemState readSensors(const SystemState& state);
+SystemState processEncoder(const SystemState& state);
+SystemState processButton(const SystemState& state);
+SystemState clampValues(const SystemState& state);
+int calculateFanSpeed(const SystemState& state);
+void updateDisplay(const SystemState& state);
+FanPwmState updateFanPwm(int fanPwmValue, const FanPwmState& pwmState);
+void applyFanOutput(bool isOn);
 
-int lastClk = HIGH;
-int lastDt = HIGH;
-bool lastButton = HIGH;
-
-// Function prototype
-void handleFanSoftwarePwm(int fanPwmValue);
+// Global state that can't be easily made functional due to hardware interactions
+SystemState state;
+FanPwmState fanState = {0, 255, false};
 
 void setup() {
+  setupHardware();
+  state = createInitialState();
+  state = readSensors(state);
+}
+
+void loop() {
+  // Read sensors periodically based on time
+  if (millis() - state.lastSensorRead >= SENSOR_READ_INTERVAL) {
+    state = readSensors(state);
+  }
+
+  // Process inputs and update state in a functional way
+  state = processEncoder(state);
+  state = processButton(state);
+  state = clampValues(state);
+  
+  // Calculate outputs based on state
+  int fanPwm = calculateFanSpeed(state);
+  updateDisplay(state);
+  
+  // Update fan state and apply to hardware
+  fanState = updateFanPwm(fanPwm, fanState);
+  applyFanOutput(fanState.isOn);
+  
+  delay(5); // Small delay to help with debouncing
+}
+
+void setupHardware() {
   Serial.begin(9600);
   delay(1000);
   Serial.println(F("Serial started."));
+  
   Wire.begin(8, 9);
   u8g2.begin();
   dht.begin();
@@ -45,111 +102,169 @@ void setup() {
   pinMode(ENCODER_CLK, INPUT_PULLUP);
   pinMode(ENCODER_DT, INPUT_PULLUP);
   pinMode(ENCODER_SW, INPUT_PULLUP);
-  pinMode(FAN_PIN, OUTPUT); // Add this
+  pinMode(FAN_PIN, OUTPUT);
 }
 
-void loop() {
-  int clkState = digitalRead(ENCODER_CLK);
-  int dtState = digitalRead(ENCODER_DT);
-  int buttonState = digitalRead(ENCODER_SW);
+SystemState createInitialState() {
+  SystemState newState = {
+    .tempTarget = 10,
+    .humTarget = 50,
+    .menuIndex = 0,
+    .humidity = 0,
+    .temperature = 0,
+    .sensorReadSuccess = false,
+    .lastStateCLK = digitalRead(ENCODER_CLK),
+    .lastButtonPress = 0,
+    .lastSensorRead = 0
+  };
+  return newState;
+}
 
-  // Only act on falling edge of CLK
-  if (lastClk == HIGH && clkState == LOW) {
-    if (dtState == HIGH) {
-      // Clockwise
-      if (menuIndex == 0) tempTarget++;
-      else if (menuIndex == 1) humTarget++;
+SystemState readSensors(const SystemState& state) {
+  SystemState newState = state;
+  
+  // Read sensors (unavoidable side effect)
+  newState.humidity = dht.readHumidity();
+  newState.temperature = dht.readTemperature();
+  newState.sensorReadSuccess = !isnan(newState.humidity) && !isnan(newState.temperature);
+  newState.lastSensorRead = millis();
+  
+  // Debug output (side effect isolated to this function)
+  Serial.print("Temp: "); Serial.print(newState.temperature);
+  Serial.print("°C, Hum: "); Serial.print(newState.humidity);
+  Serial.print("%, Target T: "); Serial.print(newState.tempTarget);
+  Serial.print("°C, H: "); Serial.println(newState.humTarget);
+  
+  return newState;
+}
+
+SystemState processEncoder(const SystemState& state) {
+  SystemState newState = state;
+  
+  // Read hardware (unavoidable side effect)
+  int currentStateCLK = digitalRead(ENCODER_CLK);
+
+  // Pure computation based on inputs
+  if (currentStateCLK != state.lastStateCLK && currentStateCLK == 1) {
+    int dtState = digitalRead(ENCODER_DT); // Another unavoidable side effect
+    
+    #ifdef DEBUG_ENCODER
+    Serial.print("Encoder: ");
+    Serial.println(dtState != state.lastStateCLK ? "CCW" : "CW");
+    #endif
+
+    if (dtState != state.lastStateCLK) {
+      // Counter-clockwise
+      if (state.menuIndex == 0) newState.tempTarget--;
+      else if (state.menuIndex == 1) newState.humTarget--;
     } else {
-      // Counterclockwise
-      if (menuIndex == 0) tempTarget--;
-      else if (menuIndex == 1) humTarget--;
+      // Clockwise
+      if (state.menuIndex == 0) newState.tempTarget++;
+      else if (state.menuIndex == 1) newState.humTarget++;
     }
   }
-  lastClk = clkState;
+  
+  newState.lastStateCLK = currentStateCLK;
+  return newState;
+}
 
-  // Detect button press (menu navigation)
-  if (buttonState == LOW && lastButton == HIGH) {
-    menuIndex = (menuIndex + 1) % 2; // Toggle between 0 and 1
-    delay(200); // Debounce
+SystemState processButton(const SystemState& state) {
+  SystemState newState = state;
+  
+  // Read button state (unavoidable side effect)
+  int buttonState = digitalRead(ENCODER_SW);
+  unsigned long currentTime = millis();
+  
+  // Pure computation based on inputs
+  if (buttonState == LOW) {
+    if (currentTime - state.lastButtonPress > BUTTON_DEBOUNCE_TIME) {
+      newState.menuIndex = (state.menuIndex + 1) % 2; // Toggle between 0 and 1
+    }
+    newState.lastButtonPress = currentTime;
   }
-  lastButton = buttonState;
+  
+  return newState;
+}
 
-  // Clamp values
-  if (tempTarget < 0) tempTarget = 0;
-  if (tempTarget > 40) tempTarget = 40;
-  if (humTarget < 0) humTarget = 0;
-  if (humTarget > 100) humTarget = 100;
+SystemState clampValues(const SystemState& state) {
+  SystemState newState = state;
+  
+  // Pure function that clamps values to allowed ranges
+  newState.tempTarget = max(TEMP_MIN, min(newState.tempTarget, TEMP_MAX));
+  newState.humTarget = max(HUM_MIN, min(newState.humTarget, HUM_MAX));
+  
+  return newState;
+}
 
-  float h = dht.readHumidity();
-  float t = dht.readTemperature();
-
-  // --- Fan PWM control ---
-  const int FAN_PWM_MIN = 100; // Minimum PWM that reliably spins the fan
-  const int FAN_PWM_MAX = 255; // Max PWM
-  int fanPwm = FAN_PWM_MIN;    // Default: slow speed
-  if (!isnan(t)) {
-    float diff = t - tempTarget;
+int calculateFanSpeed(const SystemState& state) {
+  // Pure function that calculates fan speed based on state
+  int fanPwm = FAN_PWM_MIN;  // Default: slow speed
+  
+  if (state.sensorReadSuccess) {
+    float diff = state.temperature - state.tempTarget;
     if (diff > 0) {
       // Too hot: speed up linearly, max at +10C
-      fanPwm = FAN_PWM_MIN + int((FAN_PWM_MAX - FAN_PWM_MIN) * std::min(diff, 10.0f) / 10.0f);
+      fanPwm = FAN_PWM_MIN + int((FAN_PWM_MAX - FAN_PWM_MIN) * min(diff, 10.0f) / 10.0f);
     }
   }
+  
+  return fanPwm;
+}
 
-  // Display
+void updateDisplay(const SystemState& state) {
+  // Pure calculation of what to display, with side effects of actually updating display
   u8g2.clearBuffer();
   u8g2.setFont(u8g2_font_courB08_tf);
 
   // Temp menu
-  if (menuIndex == 0) u8g2.drawBox(0, 10, 128, 20);
+  if (state.menuIndex == 0) u8g2.drawBox(0, 10, 128, 20);
   u8g2.setCursor(2, 24);
-  u8g2.setDrawColor(menuIndex == 0 ? 0 : 1);
+  u8g2.setDrawColor(state.menuIndex == 0 ? 0 : 1);
   u8g2.print("Temp T: ");
-  u8g2.print(tempTarget);
+  u8g2.print(state.tempTarget);
   u8g2.print("C G: ");
-  if (!isnan(t)) u8g2.print(t, 1);
+  if (state.sensorReadSuccess) u8g2.print(state.temperature, 1);
   else u8g2.print("--");
   u8g2.setDrawColor(1);
 
   // Humidity menu
-  if (menuIndex == 1) u8g2.drawBox(0, 34, 128, 20);
+  if (state.menuIndex == 1) u8g2.drawBox(0, 34, 128, 20);
   u8g2.setCursor(2, 48);
-  u8g2.setDrawColor(menuIndex == 1 ? 0 : 1);
+  u8g2.setDrawColor(state.menuIndex == 1 ? 0 : 1);
   u8g2.print("Hum T: ");
-  u8g2.print(humTarget);
+  u8g2.print(state.humTarget);
   u8g2.print("% G: ");
-  if (!isnan(h)) u8g2.print(h, 1);
+  if (state.sensorReadSuccess) u8g2.print(state.humidity, 1);
   else u8g2.print("--");
   u8g2.setDrawColor(1);
 
   u8g2.sendBuffer();
-
-  handleFanSoftwarePwm(fanPwm); // Pass fanPwm as argument
 }
 
-void handleFanSoftwarePwm(int fanPwmValue) {
+FanPwmState updateFanPwm(int fanPwmValue, const FanPwmState& pwmState) {
+  // Compute new PWM state based on current state and value
+  FanPwmState newState = pwmState;
   unsigned long now = millis();
-  unsigned long cycleTime = now - lastCycleStart;
+  unsigned long cycleTime = now - pwmState.lastCycleStart;
 
   // Start a new PWM period if needed
-  if (cycleTime >= period) {
-    lastCycleStart = now;
+  if (cycleTime >= pwmState.period) {
+    newState.lastCycleStart = now;
     cycleTime = 0;
   }
 
-  unsigned long onTime = (fanPwmValue * period) / 255;
-  if (cycleTime < onTime) {
-    isOn = true;
-    digitalWrite(FAN_PIN, HIGH); // Turn on fan
-  } else {
-    isOn = false;
-    digitalWrite(FAN_PIN, LOW); // Turn off fan
-  }
+  unsigned long onTime = (fanPwmValue * pwmState.period) / 255;
+  newState.isOn = (cycleTime < onTime);
+  
+  #ifdef DEBUG_PWM
+  Serial.print("PWM: "); Serial.print(fanPwmValue);
+  Serial.print(" On: "); Serial.println(newState.isOn);
+  #endif
+  
+  return newState;
+}
 
-  // Set fan state based on duty cycle
-
-  // Debug output
-  Serial.print("fanPwmValue: "); Serial.print(fanPwmValue);
-  Serial.print(" onTime: "); Serial.print(onTime);
-  Serial.print(" cycleTime: "); Serial.print(cycleTime);
-  Serial.print(" isOn: "); Serial.println(isOn);
+void applyFanOutput(bool isOn) {
+  // Hardware output side effect isolated to this function
+  digitalWrite(FAN_PIN, isOn ? HIGH : LOW);
 }
