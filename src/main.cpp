@@ -12,6 +12,7 @@
 #include "display.h"
 #include "input.h"
 #include "timer.h"
+#include "persistence.h"
 
 // Hardware initialization
 DHT dht(DHTPIN, DHTTYPE);
@@ -30,6 +31,10 @@ HeaterPwmState heaterState = {0, 1000/FAN_PWM_FREQ_SOFT, false};  // Use same pe
 void setup() {
   setupHardware();
   state = createInitialState();
+  
+  // Load stored settings from preferences
+  state = loadStoredSettings(state);
+  
   state = readSensors(state);
 }
 
@@ -50,14 +55,6 @@ void loop() {
   int heaterPwm = calculateHeaterPower(state);
   updateDisplay(state);
   
-  // Debug output for control values
-  static unsigned long lastDebugOutput = 0;
-  if (millis() - lastDebugOutput >= 1000) { // Debug output every second
-    Serial.print("Fan PWM: "); Serial.print(fanPwm);
-    Serial.print(", Heater PWM: "); Serial.println(heaterPwm);
-    lastDebugOutput = millis();
-  }
-  
   // Update fan and heater state and apply to hardware
   fanState = updateFanPwm(fanPwm, fanState);
   heaterState = updateHeaterPwm(heaterPwm, heaterState);
@@ -70,7 +67,6 @@ void loop() {
 void setupHardware() {
   Serial.begin(9600);
   delay(300);
-  Serial.println(F("Serial started."));
   
   Wire.begin(8, 9);
   u8g2.begin();

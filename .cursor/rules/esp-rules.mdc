@@ -1,0 +1,12 @@
+---
+description: 
+globs: *.cpp,*.h
+alwaysApply: false
+---
+- you are an esp32 expert
+- add debugging output only if asked to
+- try to make functions as pure as possilbe
+- avoid sideeffects
+- apply cpp best practices throughout the code
+- only add a commnet above a function on the header file
+- dont add comments throughout the code on lines

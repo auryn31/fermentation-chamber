@@ -26,15 +26,6 @@ SystemState readSensors(const SystemState& state) {
   
   newState.lastSensorRead = millis();
   
-  // Debug output (side effect isolated to this function)
-  Serial.print("Raw Temp: "); Serial.print(rawTemperature);
-  Serial.print("°C -> Comp: "); Serial.print(newState.temperature);
-  Serial.print("°C, Raw Hum: "); Serial.print(rawHumidity);
-  Serial.print("% -> Comp: "); Serial.print(newState.humidity);
-  Serial.print("%, Target T: "); Serial.print(newState.tempTarget);
-  Serial.print("°C, H: "); Serial.print(newState.humTarget);
-  Serial.println("%");
-  
   return newState;
 }
 

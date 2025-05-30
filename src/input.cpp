@@ -2,6 +2,7 @@
 #include "AiEsp32RotaryEncoder.h"
 #include "input.h"
 #include "config.h"
+#include "persistence.h"
 
 // Global encoder instance
 extern AiEsp32RotaryEncoder rotaryEncoder;
@@ -19,13 +20,15 @@ SystemState processEncoder(const SystemState& state) {
     if (state.menuIndex == 0) {
       // In temperature menu
       newState.tempTarget = currentValue;
-      Serial.print("Temperature target: ");
-      Serial.println(newState.tempTarget);
+      
+      // Save temperature target to preferences
+      saveTargetTemperature(newState.tempTarget);
     } else if (state.menuIndex == 1) {
       // In humidity menu
       newState.humTarget = currentValue;
-      Serial.print("Humidity target: ");
-      Serial.println(newState.humTarget);
+      
+      // Save humidity target to preferences
+      saveTargetHumidity(newState.humTarget);
     } else if (state.menuIndex == 2) {
       // In timer menu - adjust in 5-minute steps
       newState.timerSeconds = currentValue * TIMER_STEP;
@@ -71,11 +74,6 @@ SystemState processButton(const SystemState& state) {
           newState.timerStartTime = currentTime;
         }
       }
-      
-      Serial.print("Menu changed to: ");
-      if (newState.menuIndex == 0) Serial.println("Temperature");
-      else if (newState.menuIndex == 1) Serial.println("Humidity");
-      else Serial.println("Timer");
       
       newState.lastButtonPress = currentTime;
     }

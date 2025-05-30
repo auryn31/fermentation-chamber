@@ -9,16 +9,12 @@ SystemState updateTimer(const SystemState& state) {
     unsigned long elapsedSeconds = (currentTime - newState.timerStartTime) / 1000;
     
     if (elapsedSeconds >= newState.timerOriginalSeconds) {
-      // Timer finished
       newState.timerSeconds = 0;
       newState.timerRunning = false;
-      Serial.println("Timer finished!");
     } else {
-      // Calculate remaining time
       newState.timerSeconds = newState.timerOriginalSeconds - elapsedSeconds;
     }
   } else if (newState.timerRunning && newState.timerSeconds == 0) {
-    // Stop timer if it reaches 0
     newState.timerRunning = false;
   }
   
