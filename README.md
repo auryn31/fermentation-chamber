@@ -20,14 +20,15 @@ An ESP32-based intelligent fermentation chamber controller that maintains precis
 ## Hardware Requirements
 
 ### Components
-- **ESP32-C3 Mini** (Lolin C3 Mini or compatible)
-- **DHT11** Temperature and Humidity Sensor
-- **SH1106 OLED Display** (128x64, I2C)
-- **Rotary Encoder** with push button
-- **12V Fan** (for air circulation)
-- **Heater Element** (PTC heater or similar)
-- **MOSFETs/Relays** for fan and heater control
-- **Power Supply** (suitable for your heater and fan requirements)
+- Display: https://de.aliexpress.com/item/1005006514489341.html
+- ESP32: https://de.aliexpress.com/item/1005007205044247.html
+- Rotary Encoder: https://de.aliexpress.com/item/1005006551162496.html
+- Heating Pad: https://de.aliexpress.com/item/1005007808067441.html
+- Step Down: https://de.aliexpress.com/item/1005007092498838.html
+- Fan: https://de.aliexpress.com/item/1005006306536871.html
+- USB-C Power: https://de.aliexpress.com/item/1005006823353722.html
+- MOSFET: https://de.aliexpress.com/item/1005006152077072.html
+- DHT11: https://de.aliexpress.com/item/1005006144273755.html
 
 ### Libraries Used
 - `U8g2` - OLED Display Library
