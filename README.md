@@ -29,6 +29,7 @@ An ESP32-based intelligent fermentation chamber controller that maintains precis
 - USB-C Power: https://de.aliexpress.com/item/1005006823353722.html
 - MOSFET: https://de.aliexpress.com/item/1005006152077072.html
 - DHT11: https://de.aliexpress.com/item/1005006144273755.html
+- Resistor (10k): https://de.aliexpress.com/item/32952657927.html
 
 ### Libraries Used
 - `U8g2` - OLED Display Library
