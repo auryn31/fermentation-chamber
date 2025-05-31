@@ -18,7 +18,7 @@
 
 // Control constants
 #define FAN_PWM_FREQ_SOFT 10 // Software PWM frequency in Hz
-#define FAN_PWM_MIN 38       // Minimum PWM that reliably spins the fan (15% of 255)
+#define FAN_PWM_MIN 5       // Minimum PWM 
 #define FAN_PWM_MAX 255       // Max PWM
 #define HEATER_PWM_MIN 0      // No minimum for heater
 #define HEATER_PWM_MAX 255    // Max PWM for heater

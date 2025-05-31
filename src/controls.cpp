@@ -33,7 +33,7 @@ int calculateHeaterPower(const SystemState& state) {
     float tempDiff = state.tempTarget - state.temperature;
     
     if (tempDiff >= TEMP_THRESHOLD_LOW) {
-      heaterPwm = HEATER_PWM_MIN + int((HEATER_PWM_MAX - HEATER_PWM_MIN) * min(tempDiff, 5.0f) / 5.0f);
+      heaterPwm = HEATER_PWM_MIN + int((HEATER_PWM_MAX - HEATER_PWM_MIN) * min(tempDiff, 2.0f) / 2.0f);
     }
   }
   

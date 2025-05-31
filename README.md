@@ -64,6 +64,8 @@ ESP32-C3 Mini
     └── GPIO 21 ──── Heater Control (via MOSFET/Relay)
 ```
 
+![schema](resources/fermentation_box_schema.png)
+
 ## Installation
 
 1. **Clone the Repository**
@@ -124,7 +126,7 @@ Key parameters can be adjusted in `include/config.h`:
 ```cpp
 // Control thresholds
 #define TEMP_THRESHOLD_LOW 1      // Degrees below target to activate heater
-#define FAN_PWM_MIN 38           // Minimum fan PWM (15% for reliable operation)
+#define FAN_PWM_MIN 5           // Minimum fan PWM 
 #define SENSOR_READ_INTERVAL 500  // Sensor reading frequency (ms)
 
 // PWM frequency
