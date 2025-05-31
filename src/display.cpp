@@ -2,6 +2,7 @@
 #include <U8g2lib.h>
 #include "display.h"
 #include "controls.h"
+#include "config.h"
 
 // Global display instance
 extern U8G2_SH1106_128X64_NONAME_F_HW_I2C u8g2;
@@ -66,8 +67,8 @@ void updateDisplay(const SystemState& state) {
   
   // Fan indicator
   u8g2.print("F:");
-  if (fanPwm > 10) {  // FAN_PWM_MIN
-    int fanPercent = map(fanPwm, 10, 255, 0, 100);  // FAN_PWM_MIN, FAN_PWM_MAX
+  if (fanPwm > FAN_PWM_MIN) {
+    int fanPercent = map(fanPwm, FAN_PWM_MIN, FAN_PWM_MAX, 0, 100);
     u8g2.print(fanPercent);
     u8g2.print("%");
   } else {

@@ -61,7 +61,33 @@ void loop() {
   applyFanOutput(fanState.isOn);
   applyHeaterOutput(heaterState.isOn);
   
-  delay(5); // Small delay to help with debouncing
+  // Debug output every 2 seconds
+  static unsigned long lastDebug = 0;
+  if (millis() - lastDebug > 2000) {
+    Serial.print("FanPWM: ");
+    Serial.print(fanPwm);
+    Serial.print(", FanOn: ");
+    Serial.print(fanState.isOn);
+    Serial.print(", Period: ");
+    Serial.print(fanState.period);
+    
+    // Calculate timing values for debugging
+    unsigned long now = millis();
+    unsigned long cycleTime = now - fanState.lastCycleStart;
+    unsigned long onTime = (fanPwm * fanState.period) / 255;
+    
+    Serial.print(", CycleTime: ");
+    Serial.print(cycleTime);
+    Serial.print(", OnTime: ");
+    Serial.print(onTime);
+    Serial.print(", Temp: ");
+    Serial.print(state.temperature);
+    Serial.print(", Target: ");
+    Serial.println(state.tempTarget);
+    lastDebug = millis();
+  }
+  
+  delay(1); // Small delay to help with debouncing
 }
 
 void setupHardware() {
