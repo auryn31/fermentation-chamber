@@ -2,24 +2,22 @@
 #define CONFIG_H
 
 // Pin definitions
-#define DHTPIN 7
-#define DHTTYPE DHT11
-#define ENCODER_CLK 3
-#define ENCODER_DT  2
+#define ENCODER_CLK 2
+#define ENCODER_DT  3
 #define ENCODER_SW  10
 #define FAN_PIN 5
 #define HEATER_PIN 21
+#define VAPORIZER_PIN 0
 
-// Voltage compensation constants for DHT11 at 2.8V
-#define SUPPLY_VOLTAGE 3.0f          // Actual supply voltage
-#define NOMINAL_VOLTAGE 3.3f         // DHT11 nominal voltage
-#define HUMIDITY_VOLTAGE_COMPENSATION_FACTOR 0.85f  // Empirical factor for humidity correction
-#define TEMP_VOLTAGE_COMPENSATION_OFFSET -1.5f      // Temperature offset in °C
+// I2C configuration for BME280
+#define BME280_I2C_ADDRESS 0x76  // Default I2C address for BME280
 
 // Control constants
 #define FAN_PWM_FREQ_SOFT 10 // Software PWM frequency in Hz
-#define FAN_PWM_MIN 5       // Minimum PWM 
+#define FAN_PWM_MIN 1       // Minimum PWM for slow operation
+#define FAN_PWM_START 50    // PWM value to start the fan (kick-start)
 #define FAN_PWM_MAX 255       // Max PWM
+#define FAN_KICK_START_DURATION 1000 // Kick-start duration in milliseconds
 #define HEATER_PWM_MIN 0      // No minimum for heater
 #define HEATER_PWM_MAX 255    // Max PWM for heater
 #define TEMP_THRESHOLD_LOW 1  // Minimum degrees below target to turn on heater

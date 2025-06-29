@@ -1,7 +1,8 @@
 #include <Arduino.h>
 #include <Wire.h>
 #include <U8g2lib.h>
-#include <DHT.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BME280.h>
 #include "AiEsp32RotaryEncoder.h"
 
 // Include our modular headers
@@ -15,7 +16,7 @@
 #include "persistence.h"
 
 // Hardware initialization
-DHT dht(DHTPIN, DHTTYPE);
+Adafruit_BME280 bme;
 U8G2_SH1106_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE);
 AiEsp32RotaryEncoder rotaryEncoder = AiEsp32RotaryEncoder(ENCODER_DT, ENCODER_CLK, ENCODER_SW, -1, ROTARY_ENCODER_STEPS);
 
@@ -25,8 +26,9 @@ SystemState createInitialState();
 
 // Global state that can't be easily made functional due to hardware interactions
 SystemState state;
-FanPwmState fanState = {0, 1000/FAN_PWM_FREQ_SOFT, false};  // Calculate proper period from frequency
+FanPwmState fanState = {0, 1000/FAN_PWM_FREQ_SOFT, false, 0};  // Calculate proper period from frequency
 HeaterPwmState heaterState = {0, 1000/FAN_PWM_FREQ_SOFT, false};  // Use same period for heater
+VaporizerState vaporizerState = {false, 0};
 
 void setup() {
   setupHardware();
@@ -51,15 +53,23 @@ void loop() {
   state = updateTimer(state);
   
   // Calculate outputs based on state
-  int fanPwm = calculateFanSpeed(state);
+  int fanPwm = calculateFanSpeed(state, vaporizerState);
   int heaterPwm = calculateHeaterPower(state);
-  updateDisplay(state);
+  bool vaporizerOn = calculateVaporizerState(state, vaporizerState);
+  updateDisplay(state, vaporizerState);
   
   // Update fan and heater state and apply to hardware
   fanState = updateFanPwm(fanPwm, fanState);
   heaterState = updateHeaterPwm(heaterPwm, heaterState);
   applyFanOutput(fanState.isOn);
   applyHeaterOutput(heaterState.isOn);
+  applyVaporizerOutput(vaporizerOn);
+  
+  // Update vaporizer state
+  if (vaporizerOn != vaporizerState.isOn) {
+    vaporizerState.isOn = vaporizerOn;
+    vaporizerState.lastStateChange = millis();
+  }
   
   // Debug output every 2 seconds
   static unsigned long lastDebug = 0;
@@ -83,7 +93,13 @@ void loop() {
     Serial.print(", Temp: ");
     Serial.print(state.temperature);
     Serial.print(", Target: ");
-    Serial.println(state.tempTarget);
+    Serial.print(state.tempTarget);
+    Serial.print(", Humidity: ");
+    Serial.print(state.humidity);
+    Serial.print(", HumTarget: ");
+    Serial.print(state.humTarget);
+    Serial.print(", Vaporizer: ");
+    Serial.println(vaporizerOn);
     lastDebug = millis();
   }
   
@@ -96,7 +112,13 @@ void setupHardware() {
   
   Wire.begin(8, 9);
   u8g2.begin();
-  dht.begin();
+  
+  // Initialize BME280 sensor
+  if (!bme.begin(BME280_I2C_ADDRESS)) {
+    Serial.println("Could not find a valid BME280 sensor, check wiring!");
+  } else {
+    Serial.println("BME280 sensor found and initialized!");
+  }
 
   // Initialize rotary encoder
   rotaryEncoder.begin();
@@ -107,6 +129,7 @@ void setupHardware() {
   
   pinMode(FAN_PIN, OUTPUT);
   pinMode(HEATER_PIN, OUTPUT);
+  pinMode(VAPORIZER_PIN, OUTPUT);
 }
 
 SystemState createInitialState() {

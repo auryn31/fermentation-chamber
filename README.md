@@ -9,13 +9,13 @@ An ESP32-based intelligent fermentation chamber controller that maintains precis
 ## Features
 
 - **Precise Temperature Control**: Maintains target temperature using PID-like control with heater management
-- **Humidity Monitoring**: Real-time humidity tracking with DHT11 sensor
+- **High-Accuracy Humidity Monitoring**: Real-time humidity tracking with BME280 sensor (±3% accuracy)
 - **Smart Fan Control**: Variable speed fan control based on temperature and humidity differentials
 - **Interactive Interface**: OLED display with rotary encoder for easy parameter adjustment
 - **Timer Functionality**: Built-in countdown timer for fermentation processes
 - **Persistent Settings**: Automatically saves and restores user preferences
 - **Software PWM**: Efficient software-based PWM control for both fan and heater
-- **Voltage Compensation**: Automatic compensation for DHT11 sensor accuracy at different voltages
+- **I2C Communication**: Reliable I2C-based sensor communication for improved accuracy
 
 ## Hardware Requirements
 
@@ -27,39 +27,39 @@ An ESP32-based intelligent fermentation chamber controller that maintains precis
 - Step Down: https://de.aliexpress.com/item/1005007092498838.html
 - Fan: https://de.aliexpress.com/item/1005006306536871.html
 - USB-C Power: https://de.aliexpress.com/item/1005006823353722.html
-- MOSFET: https://de.aliexpress.com/item/1005006152077072.html
-- DHT11: https://de.aliexpress.com/item/1005006144273755.html
+- MOSFET: https://de.aliexpress.com/item/1005006152076872.html
+- BME280 Sensor: https://de.aliexpress.com/item/1005006144273755.html
 - Resistor (10k): https://de.aliexpress.com/item/32952657927.html
 
 ### Libraries Used
 - `U8g2` - OLED Display Library
-- `DHT sensor library` - Temperature/Humidity Sensor
+- `Adafruit BME280 Library` - High-precision Temperature/Humidity/Pressure Sensor
 - `Ai Esp32 Rotary Encoder` - Rotary Encoder Interface
 
 ## Pin Configuration
 
 | Component | ESP32-C3 Pin |
 |-----------|--------------|
-| DHT11 Data | GPIO 7 |
+| BME280 SDA | GPIO 8 (I2C) |
+| BME280 SCL | GPIO 9 (I2C) |
 | Encoder CLK | GPIO 3 |
 | Encoder DT | GPIO 2 |
 | Encoder SW | GPIO 10 |
 | Fan Control | GPIO 5 |
 | Heater Control | GPIO 21 |
-| I2C SDA | GPIO 8 |
-| I2C SCL | GPIO 9 |
+| OLED SDA | GPIO 8 (I2C) |
+| OLED SCL | GPIO 9 (I2C) |
 
 ## Wiring Diagram
 
 ```
 ESP32-C3 Mini
     │
-    ├── GPIO 7  ──── DHT11 Data Pin
+    ├── GPIO 8  ──── I2C SDA (BME280 + OLED)
+    ├── GPIO 9  ──── I2C SCL (BME280 + OLED)
     ├── GPIO 3  ──── Rotary Encoder CLK
     ├── GPIO 2  ──── Rotary Encoder DT
     ├── GPIO 10 ──── Rotary Encoder SW (Button)
-    ├── GPIO 8  ──── OLED SDA (I2C)
-    ├── GPIO 9  ──── OLED SCL (I2C)
     ├── GPIO 5  ──── Fan Control (via MOSFET/Relay)
     └── GPIO 21 ──── Heater Control (via MOSFET/Relay)
 ```
@@ -131,6 +131,9 @@ Key parameters can be adjusted in `include/config.h`:
 
 // PWM frequency
 #define FAN_PWM_FREQ_SOFT 10     // Software PWM frequency (Hz)
+
+// I2C configuration
+#define BME280_I2C_ADDRESS 0x76  // BME280 I2C address
 ```
 
 ## Architecture
@@ -138,7 +141,7 @@ Key parameters can be adjusted in `include/config.h`:
 The project follows a functional programming approach with clear separation of concerns:
 
 - **`main.cpp`**: Main loop and hardware initialization
-- **`sensors.cpp`**: DHT11 sensor reading with voltage compensation
+- **`sensors.cpp`**: BME280 sensor reading (high accuracy, no compensation needed)
 - **`controls.cpp`**: Fan and heater control logic
 - **`display.cpp`**: OLED display management
 - **`input.cpp`**: Rotary encoder and button handling
@@ -150,8 +153,9 @@ The project follows a functional programming approach with clear separation of c
 ### Common Issues
 
 1. **Sensor Reading Failures**
-   - Check DHT11 wiring and power supply
-   - Verify pin configuration in `config.h`
+   - Check BME280 I2C wiring and power supply
+   - Verify I2C address in `config.h` (try 0x77 if 0x76 doesn't work)
+   - Use I2C scanner to find the correct address
 
 2. **Fan Not Starting**
    - Ensure `FAN_PWM_MIN` is set appropriately for your fan

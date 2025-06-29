@@ -24,6 +24,7 @@ struct FanPwmState {
   unsigned long lastCycleStart;
   unsigned long period;
   bool isOn;
+  unsigned long lastStartTime;  // When fan was last started (for kick-start)
 };
 
 // Heater PWM state structure
@@ -31,6 +32,12 @@ struct HeaterPwmState {
   unsigned long lastCycleStart;
   unsigned long period;
   bool isOn;
+};
+
+// Vaporizer state structure
+struct VaporizerState {
+  bool isOn;
+  unsigned long lastStateChange;
 };
 
 #endif // TYPES_H 

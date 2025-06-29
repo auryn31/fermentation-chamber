@@ -6,6 +6,5 @@
 // Function declarations for sensor operations
 SystemState readSensors(const SystemState& state);
 float compensateHumidity(float rawHumidity);
-float compensateTemperature(float rawTemperature);
 
 #endif // SENSORS_H 

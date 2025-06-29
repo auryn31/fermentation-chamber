@@ -7,7 +7,7 @@
 // Global display instance
 extern U8G2_SH1106_128X64_NONAME_F_HW_I2C u8g2;
 
-void updateDisplay(const SystemState& state) {
+void updateDisplay(const SystemState& state, const VaporizerState& vaporizerState) {
   // Pure calculation of what to display, with side effects of actually updating display
   u8g2.clearBuffer();
   u8g2.setFont(u8g2_font_courB12_tf);  // Larger font
@@ -57,12 +57,12 @@ void updateDisplay(const SystemState& state) {
   u8g2.print(seconds);
   u8g2.setDrawColor(1);
 
-  // Status indicators (bottom line) - Fan and Heater status
+  // Status indicators (bottom line) - Fan, Heater, and Vaporizer status
   u8g2.setFont(u8g2_font_6x10_tf);  // Smaller font for status
   u8g2.setCursor(2, 63);
   
   // Calculate current fan and heater values for display
-  int fanPwm = calculateFanSpeed(state);
+  int fanPwm = calculateFanSpeedForDisplay(state);
   int heaterPwm = calculateHeaterPower(state);
   
   // Fan indicator
@@ -76,15 +76,20 @@ void updateDisplay(const SystemState& state) {
   }
   
   // Heater indicator
-  u8g2.setCursor(65, 63);
+  u8g2.setCursor(45, 63);
   u8g2.print("H:");
   if (heaterPwm > 0) {
-    int heaterPercent = map(heaterPwm, 0, 255, 0, 100);  // HEATER_PWM_MIN, HEATER_PWM_MAX
+    int heaterPercent = map(heaterPwm, 0, 255, 0, 100);
     u8g2.print(heaterPercent);
     u8g2.print("%");
   } else {
     u8g2.print("OFF");
   }
+  
+  // Vaporizer indicator
+  u8g2.setCursor(88, 63);
+  u8g2.print("V:");
+  u8g2.print(vaporizerState.isOn ? "ON" : "OFF");
 
   u8g2.sendBuffer();
 } 
