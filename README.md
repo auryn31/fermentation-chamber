@@ -4,7 +4,8 @@ An ESP32-based intelligent fermentation chamber controller that maintains precis
 
 ## 🎥 Demo Video
 
-[![Fermentation Chamber Controller Demo](https://img.shields.io/badge/YouTube-Watch%20Demo-red?style=for-the-badge&logo=youtube)](https://youtu.be/tLW_WAPdoeg)
+[![Fermentation Chamber Controller Demo](https://img.shields.io/badge/YouTube-Watch%20V1-red?style=for-the-badge&logo=youtube)](https://youtu.be/tLW_WAPdoeg)
+[![Fermentation Chamber Controller V2](https://img.shields.io/badge/YouTube-Watch%20V2-red?style=for-the-badge&logo=youtube)](https://youtu.be/uAKlWe1nWns)
 
 ## Features
 
@@ -20,16 +21,23 @@ An ESP32-based intelligent fermentation chamber controller that maintains precis
 ## Hardware Requirements
 
 ### Components
-- Display: https://de.aliexpress.com/item/1005006514489341.html
+- Connectors: https://de.aliexpress.com/item/1005007460897865.html
+- Pin headers: https://de.aliexpress.com/item/4000873858801.html
+- Heat Pad: https://de.aliexpress.com/item/4001309920804.html
+- Humidifier: https://de.aliexpress.com/item/1005008882836452.html
+- Screw headers: https://de.aliexpress.com/item/1005008165668449.html
+- Fan: https://de.aliexpress.com/item/1005007144892529.html
+- 5V Step Down: https://de.aliexpress.com/item/1005001629723875.html
+- BME280: https://de.aliexpress.com/item/32662970772.html
+- MOSFET (IRLZ44N): https://de.aliexpress.com/item/1005006228628494.html
+- Display with Rotary Encoder: https://de.aliexpress.com/item/1005008817896911.html
 - ESP32: https://de.aliexpress.com/item/1005007205044247.html
-- Rotary Encoder: https://de.aliexpress.com/item/1005006551162496.html
-- Heating Pad: https://de.aliexpress.com/item/1005007808067441.html
-- Step Down: https://de.aliexpress.com/item/1005007092498838.html
-- Fan: https://de.aliexpress.com/item/1005006306536871.html
-- USB-C Power: https://de.aliexpress.com/item/1005006823353722.html
-- MOSFET: https://de.aliexpress.com/item/1005006152076872.html
-- BME280 Sensor: https://de.aliexpress.com/item/1005006144273755.html
 - Resistor (10k): https://de.aliexpress.com/item/32952657927.html
+- Power Supply: https://de.aliexpress.com/item/1005006823353722.html
+- Cable Tape: https://de.aliexpress.com/item/1005008158457854.html
+- Hardware from Hardware Store:
+   - Plywood 4mm A4
+   - Saw / Drill / Wood Glue
 
 ### Libraries Used
 - `U8g2` - OLED Display Library
@@ -42,11 +50,12 @@ An ESP32-based intelligent fermentation chamber controller that maintains precis
 |-----------|--------------|
 | BME280 SDA | GPIO 8 (I2C) |
 | BME280 SCL | GPIO 9 (I2C) |
-| Encoder CLK | GPIO 3 |
-| Encoder DT | GPIO 2 |
+| Encoder CLK | GPIO 2 |
+| Encoder DT | GPIO 3 |
 | Encoder SW | GPIO 10 |
 | Fan Control | GPIO 5 |
 | Heater Control | GPIO 21 |
+| Vaporizer Control | GPIO 0 |
 | OLED SDA | GPIO 8 (I2C) |
 | OLED SCL | GPIO 9 (I2C) |
 
@@ -57,13 +66,15 @@ ESP32-C3 Mini
     │
     ├── GPIO 8  ──── I2C SDA (BME280 + OLED)
     ├── GPIO 9  ──── I2C SCL (BME280 + OLED)
-    ├── GPIO 3  ──── Rotary Encoder CLK
-    ├── GPIO 2  ──── Rotary Encoder DT
+    ├── GPIO 2  ──── Rotary Encoder CLK
+    ├── GPIO 3  ──── Rotary Encoder DT
     ├── GPIO 10 ──── Rotary Encoder SW (Button)
     ├── GPIO 5  ──── Fan Control (via MOSFET/Relay)
-    └── GPIO 21 ──── Heater Control (via MOSFET/Relay)
+    ├── GPIO 21 ──── Heater Control (via MOSFET/Relay)
+    └── GPIO 0  ──── Vaporizer Control (via MOSFET/Relay)
 ```
 
+Outdated: 
 ![schema](resources/fermentation_box_schema.png)
 
 ## Installation
@@ -112,6 +123,7 @@ ESP32-C3 Mini
   - Primary function: cooling when temperature exceeds target
   - Secondary function: humidity control when temperature is within range
   - Minimum PWM ensures reliable fan operation
+- **Vaporizer**: Activates when humidity is below target to increase humidity levels
 
 ### Timer Functionality
 - Set timer duration using rotary encoder
@@ -126,7 +138,11 @@ Key parameters can be adjusted in `include/config.h`:
 ```cpp
 // Control thresholds
 #define TEMP_THRESHOLD_LOW 1      // Degrees below target to activate heater
-#define FAN_PWM_MIN 5           // Minimum fan PWM 
+#define FAN_PWM_MIN 0           // Minimum fan PWM 
+#define FAN_PWM_START 50        // PWM value to start the fan (kick-start)
+#define FAN_PWM_MAX 255         // Maximum fan PWM
+#define HEATER_PWM_MIN 0        // Minimum heater PWM
+#define HEATER_PWM_MAX 255      // Maximum heater PWM
 #define SENSOR_READ_INTERVAL 500  // Sensor reading frequency (ms)
 
 // PWM frequency
@@ -134,6 +150,12 @@ Key parameters can be adjusted in `include/config.h`:
 
 // I2C configuration
 #define BME280_I2C_ADDRESS 0x76  // BME280 I2C address
+
+// Range limits
+#define TEMP_MIN 0              // Minimum temperature (°C)
+#define TEMP_MAX 40             // Maximum temperature (°C)
+#define HUM_MIN 0               // Minimum humidity (%)
+#define HUM_MAX 100             // Maximum humidity (%)
 ```
 
 ## Architecture
