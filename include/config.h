@@ -14,7 +14,7 @@
 
 // Control constants
 #define FAN_PWM_FREQ_SOFT 10 // Software PWM frequency in Hz
-#define FAN_PWM_MIN 1       // Minimum PWM for slow operation
+#define FAN_PWM_MIN 0       // Minimum PWM for slow operation
 #define FAN_PWM_START 50    // PWM value to start the fan (kick-start)
 #define FAN_PWM_MAX 255       // Max PWM
 #define FAN_KICK_START_DURATION 1000 // Kick-start duration in milliseconds
